@@ -6,6 +6,8 @@ Web interface for the Literature Search & Similarity Tool
 import io
 import csv
 from typing import List, Optional
+from functools import partial
+import asyncio
 
 from fastapi import FastAPI, Request, Query
 from fastapi.staticfiles import StaticFiles
@@ -83,10 +85,15 @@ async def statistics_page(request: Request):
 
 # --- API routes ---
 
+def run_in_thread(func, *args, **kwargs):
+    loop = asyncio.get_event_loop()
+    return loop.run_in_executor(None, partial(func, *args, **kwargs))
+
+
 @app.post("/api/search")
 async def api_search(req: SearchRequest):
     try:
-        results = get_pipeline().search_similar(req.query_text, top_k=req.top_k)
+        results = await run_in_thread(get_pipeline().search_similar, req.query_text, top_k=req.top_k)
 
         for article in results:
             article['pico'] = PICOExtractor.extract_pico(article.get('abstract', ''))
@@ -166,7 +173,7 @@ async def api_search_export(
 @app.post("/api/clear-articles")
 async def api_clear_articles():
     try:
-        get_pipeline().db.clear_all()
+        await run_in_thread(get_pipeline().db.clear_all)
         return {"status": "success"}
     except Exception as e:
         return JSONResponse(status_code=500, content={"detail": str(e)})
@@ -175,7 +182,8 @@ async def api_clear_articles():
 @app.post("/api/fetch-articles")
 async def api_fetch(req: FetchRequest):
     try:
-        articles = get_pipeline().fetch_articles(
+        articles = await run_in_thread(
+            get_pipeline().fetch_articles,
             query=req.query, max_results=req.max_results,
             email=req.email or "user@example.com", source=req.source
         )
@@ -191,7 +199,7 @@ async def api_create_embeddings(req: EmbeddingsRequest):
         if req.model != p.embedding_model_name:
             p.embedding_engine = EmbeddingEngine(req.model)
             p.embedding_model_name = req.model
-        p.create_embeddings()
+        await run_in_thread(p.create_embeddings)
         stats = p.get_statistics()
         return {"status": "success", "articles_processed": stats['articles_with_embeddings']}
     except Exception as e:
@@ -201,7 +209,7 @@ async def api_create_embeddings(req: EmbeddingsRequest):
 @app.post("/api/create-clusters")
 async def api_create_clusters(req: ClusterRequest):
     try:
-        get_pipeline().cluster_articles(n_clusters=req.n_clusters, method=req.method)
+        await run_in_thread(get_pipeline().cluster_articles, n_clusters=req.n_clusters, method=req.method)
         clusters = get_pipeline().db.get_all_clusters()
         return {"status": "success", "clusters": clusters}
     except Exception as e:
