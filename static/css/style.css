@@ -872,3 +872,19 @@ input[type="range"] {
 .article-link:hover {
     text-decoration: underline;
 }
+
+/* === Performance: CSS containment for long list items === */
+.article-card,
+.cluster-item,
+.duplicate-item {
+    contain: layout style;
+}
+
+.btn-primary,
+.btn-secondary {
+    will-change: transform, box-shadow;
+}
+
+.source-bar-inner {
+    will-change: width;
+}

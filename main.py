@@ -10,6 +10,7 @@ from functools import partial
 from typing import List, Optional
 
 from fastapi import FastAPI, Request, Query
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse, StreamingResponse, JSONResponse
@@ -19,6 +20,7 @@ from pipeline import LiteratureSearchPipeline
 from embeddings import EmbeddingEngine, PICOExtractor
 
 app = FastAPI(title="Literature Search Tool")
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
@@ -219,10 +221,12 @@ async def api_create_clusters(req: ClusterRequest):
 
 
 @app.get("/api/clusters")
-async def api_get_clusters():
+async def api_get_clusters(request: Request):
     try:
         clusters = get_pipeline().db.get_all_clusters()
-        return {"clusters": clusters}
+        response = JSONResponse(content={"clusters": clusters})
+        response.headers["Cache-Control"] = "public, max-age=30"
+        return response
     except Exception as e:
         return JSONResponse(status_code=500, content={"detail": str(e)})
 
@@ -243,7 +247,10 @@ async def api_get_cluster_articles(cluster_id: int):
 @app.get("/api/statistics")
 async def api_statistics():
     try:
-        return get_pipeline().get_statistics()
+        stats = get_pipeline().get_statistics()
+        response = JSONResponse(content=stats)
+        response.headers["Cache-Control"] = "public, max-age=15"
+        return response
     except Exception as e:
         return JSONResponse(status_code=500, content={"detail": str(e)})
 

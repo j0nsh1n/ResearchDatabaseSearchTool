@@ -4,10 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Literature Search Tool{% endblock %}</title>
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css">
+    <meta name="theme-color" content="#0f172a">
 </head>
 <body>
     <nav class="navbar">
@@ -38,7 +40,7 @@
         </div>
     </footer>
 
-    <script src="/static/js/common.js"></script>
+    <script src="/static/js/common.js" defer></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>
