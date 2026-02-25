@@ -66,18 +66,25 @@ async function doFetch() {
     let totalFetched = 0;
     const errors = [];
 
-    for (const source of sources) {
-        setStatus('fetch-status', `Fetching from ${getSourceName(source)}...`, 'info');
-        try {
-            const data = await apiCall('/api/fetch-articles', {
+    const sourceNames = sources.map(getSourceName).join(', ');
+    setStatus('fetch-status', `Fetching from ${sourceNames} simultaneously...`, 'info');
+
+    const fetchResults = await Promise.allSettled(
+        sources.map(source =>
+            apiCall('/api/fetch-articles', {
                 method: 'POST',
                 body: { source, query, max_results: maxResults, email: email || null }
-            });
-            totalFetched += data.articles_fetched;
-        } catch (e) {
-            errors.push(`${getSourceName(source)}: ${e.message}`);
+            })
+        )
+    );
+
+    fetchResults.forEach((result, i) => {
+        if (result.status === 'fulfilled') {
+            totalFetched += result.value.articles_fetched;
+        } else {
+            errors.push(`${getSourceName(sources[i])}: ${result.reason.message}`);
         }
-    }
+    });
 
     setLoading(btn, false);
     updateNavStats();
