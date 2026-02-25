@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip:*)",
+      "Bash(timeout 15 uvicorn:*)",
+      "Bash(python:*)",
+      "Bash(curl:*)",
+      "Bash(powershell -Command \"Invoke-WebRequest -Uri ''http://localhost:7860/'' -UseBasicParsing\")",
+      "Bash(powershell -Command \"netstat -ano | findstr '':7860''\")",
+      "Bash(powershell -Command \"Start-Process ''http://localhost:7860''\")",
+      "Bash(ngrok version:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(cloudflared:*)",
+      "Bash(winget install:*)"
+    ]
+  }
+}
