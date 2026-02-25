@@ -1,0 +1,23 @@
+# Cloudflare Tunnel configuration
+# ================================
+# Usage:
+#   1. Install cloudflared: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/get-started/
+#   2. Authenticate: cloudflared tunnel login
+#   3. Create a tunnel: cloudflared tunnel create health-literature-search
+#   4. Copy the tunnel ID and credentials file path into this file
+#   5. Add DNS route: cloudflared tunnel route dns <TUNNEL_ID> your-domain.com
+#   6. Run: cloudflared tunnel --config cloudflare-tunnel.yml run
+#
+# Replace <TUNNEL_ID> with the UUID output from step 3.
+# Replace /path/to/.cloudflared/<TUNNEL_ID>.json with your credentials file path.
+
+tunnel: <TUNNEL_ID>
+credentials-file: /path/to/.cloudflared/<TUNNEL_ID>.json
+
+ingress:
+  - hostname: your-domain.com
+    service: http://localhost:7860
+    originRequest:
+      connectTimeout: 30s
+      noTLSVerify: false
+  - service: http_status:404
