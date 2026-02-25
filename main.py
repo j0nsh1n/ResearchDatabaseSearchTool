@@ -5,6 +5,8 @@ Web interface for the Literature Search & Similarity Tool
 
 import io
 import csv
+import asyncio
+from functools import partial
 from typing import List, Optional
 
 from fastapi import FastAPI, Request, Query
@@ -175,9 +177,17 @@ async def api_clear_articles():
 @app.post("/api/fetch-articles")
 async def api_fetch(req: FetchRequest):
     try:
-        articles = get_pipeline().fetch_articles(
-            query=req.query, max_results=req.max_results,
-            email=req.email or "user@example.com", source=req.source
+        p = get_pipeline()
+        loop = asyncio.get_event_loop()
+        articles = await loop.run_in_executor(
+            None,
+            partial(
+                p.fetch_articles,
+                query=req.query,
+                max_results=req.max_results,
+                email=req.email or "user@example.com",
+                source=req.source,
+            )
         )
         return {"status": "success", "articles_fetched": len(articles) if articles else 0, "source": req.source}
     except Exception as e:

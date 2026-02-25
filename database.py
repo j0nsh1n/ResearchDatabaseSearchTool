@@ -5,6 +5,7 @@ Handles storage and retrieval of articles and embeddings
 
 import sqlite3
 import json
+import threading
 import numpy as np
 from typing import List, Dict, Optional, Tuple
 import pickle
@@ -17,12 +18,15 @@ class ArticleDatabase:
         """Initialize database connection"""
         self.db_path = db_path
         self.conn = sqlite3.connect(db_path, check_same_thread=False)
+        self._write_lock = threading.Lock()
         self.create_tables()
         self.migrate_schema()
 
     def create_tables(self):
         """Create database tables if they don't exist"""
         cursor = self.conn.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
 
         # Articles table
         cursor.execute("""
@@ -143,11 +147,12 @@ class ArticleDatabase:
 
     def clear_all(self):
         """Delete all articles, embeddings, and clusters from the database"""
-        cursor = self.conn.cursor()
-        cursor.execute("DELETE FROM clusters")
-        cursor.execute("DELETE FROM embeddings")
-        cursor.execute("DELETE FROM articles")
-        self.conn.commit()
+        with self._write_lock:
+            cursor = self.conn.cursor()
+            cursor.execute("DELETE FROM clusters")
+            cursor.execute("DELETE FROM embeddings")
+            cursor.execute("DELETE FROM articles")
+            self.conn.commit()
 
     def insert_articles(self, articles: List[Dict]):
         """
@@ -156,28 +161,29 @@ class ArticleDatabase:
         Args:
             articles: List of article dictionaries with 'article_id' and 'source' keys
         """
-        cursor = self.conn.cursor()
+        with self._write_lock:
+            cursor = self.conn.cursor()
 
-        for article in articles:
-            try:
-                cursor.execute("""
-                    INSERT OR REPLACE INTO articles
-                    (article_id, source, title, abstract, year, authors, journal)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    article['article_id'],
-                    article.get('source', 'pubmed'),
-                    article['title'],
-                    article['abstract'],
-                    article['year'],
-                    json.dumps(article['authors']),
-                    article['journal']
-                ))
-            except Exception as e:
-                print(f"Error inserting article {article.get('article_id')}: {e}")
+            for article in articles:
+                try:
+                    cursor.execute("""
+                        INSERT OR REPLACE INTO articles
+                        (article_id, source, title, abstract, year, authors, journal)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        article['article_id'],
+                        article.get('source', 'pubmed'),
+                        article['title'],
+                        article['abstract'],
+                        article['year'],
+                        json.dumps(article['authors']),
+                        article['journal']
+                    ))
+                except Exception as e:
+                    print(f"Error inserting article {article.get('article_id')}: {e}")
 
-        self.conn.commit()
-        print(f"Inserted {len(articles)} articles")
+            self.conn.commit()
+            print(f"Inserted {len(articles)} articles")
 
     def get_all_articles(self) -> List[Dict]:
         """Retrieve all articles from database"""
@@ -227,20 +233,21 @@ class ArticleDatabase:
             embeddings: Dictionary mapping (article_id, source) tuples to embedding vectors
             model_name: Name of the embedding model used
         """
-        cursor = self.conn.cursor()
+        with self._write_lock:
+            cursor = self.conn.cursor()
 
-        for key, embedding in embeddings.items():
-            article_id, source = key
-            embedding_bytes = pickle.dumps(embedding)
+            for key, embedding in embeddings.items():
+                article_id, source = key
+                embedding_bytes = pickle.dumps(embedding)
 
-            cursor.execute("""
-                INSERT OR REPLACE INTO embeddings
-                (article_id, source, embedding, model_name)
-                VALUES (?, ?, ?, ?)
-            """, (article_id, source, embedding_bytes, model_name))
+                cursor.execute("""
+                    INSERT OR REPLACE INTO embeddings
+                    (article_id, source, embedding, model_name)
+                    VALUES (?, ?, ?, ?)
+                """, (article_id, source, embedding_bytes, model_name))
 
-        self.conn.commit()
-        print(f"Inserted embeddings for {len(embeddings)} articles")
+            self.conn.commit()
+            print(f"Inserted embeddings for {len(embeddings)} articles")
 
     def get_all_embeddings(self) -> Tuple[List[Tuple[str, str]], np.ndarray]:
         """
@@ -271,18 +278,19 @@ class ArticleDatabase:
         Args:
             cluster_assignments: Dict mapping (article_id, source) tuples to (cluster_id, cluster_label)
         """
-        cursor = self.conn.cursor()
+        with self._write_lock:
+            cursor = self.conn.cursor()
 
-        for key, (cluster_id, label) in cluster_assignments.items():
-            article_id, source = key
-            cursor.execute("""
-                INSERT OR REPLACE INTO clusters
-                (article_id, source, cluster_id, cluster_label)
-                VALUES (?, ?, ?, ?)
-            """, (article_id, source, cluster_id, label))
+            for key, (cluster_id, label) in cluster_assignments.items():
+                article_id, source = key
+                cursor.execute("""
+                    INSERT OR REPLACE INTO clusters
+                    (article_id, source, cluster_id, cluster_label)
+                    VALUES (?, ?, ?, ?)
+                """, (article_id, source, cluster_id, label))
 
-        self.conn.commit()
-        print(f"Inserted cluster assignments for {len(cluster_assignments)} articles")
+            self.conn.commit()
+            print(f"Inserted cluster assignments for {len(cluster_assignments)} articles")
 
     def get_articles_by_cluster(self, cluster_id: int) -> List[Dict]:
         """Get all articles in a specific cluster"""
