@@ -1,7 +1,7 @@
 """
 Embeddings Module
-Creates semantic embeddings for articles using pre-trained models
-Now uses FAISS for fast similarity search (v2.3.0)
+Creates semantic embeddings for articles using pre-trained models.
+Uses FAISS for fast similarity search when available (sklearn fallback).
 """
 
 import logging

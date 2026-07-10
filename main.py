@@ -217,12 +217,6 @@ class SeedSearchRequest(BaseModel):
     cluster_filter: Optional[List[int]] = None
     source_filter: Optional[List[str]] = None
 
-class FetchRequest(BaseModel):
-    source: str = "pubmed"
-    query: str
-    max_results: int = Field(default=500, ge=1, le=1000)
-    email: Optional[str] = None
-
 class MultiFetchRequest(BaseModel):
     sources: List[str]
     query: str
@@ -756,29 +750,6 @@ async def api_fetch_multi(req: MultiFetchRequest, request: Request):
         return server_error(e)
     finally:
         update_progress(uid, 'fetch', active=False, done=0, total=0)
-        release_pipeline(uid)
-
-
-@app.post("/api/fetch-articles")
-@limiter.limit("20/minute")
-async def api_fetch(req: FetchRequest, request: Request):
-    user = current_user(request)
-    if not user:
-        return JSONResponse(status_code=401, content={"detail": "Not authenticated"})
-    if csrf_failed(request):
-        return JSONResponse(status_code=403, content={"detail": "CSRF validation failed"})
-    uid = user["user_id"]
-    p = get_pipeline(uid)
-    try:
-        articles = await run_in_thread(
-            p.fetch_articles,
-            query=req.query, max_results=req.max_results,
-            email=req.email or "user@example.com", source=req.source,
-        )
-        return {"status": "success", "articles_fetched": len(articles) if articles else 0, "source": req.source}
-    except Exception as e:
-        return server_error(e)
-    finally:
         release_pipeline(uid)
 
 

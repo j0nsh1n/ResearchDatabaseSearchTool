@@ -8,7 +8,7 @@ numpy>=2.0.0
 sentence-transformers>=3.0.0
 scikit-learn>=1.5.0
 
-# Fast vector search (new in v2.3.0)
+# Fast vector search (optional; sklearn fallback if missing)
 faiss-cpu>=1.8.0
 
 # Density clustering (HDBSCAN "Density" method) reduces embeddings with UMAP

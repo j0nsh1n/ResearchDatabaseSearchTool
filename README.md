@@ -1,5 +1,5 @@
 ---
-title: Health Database Search
+title: Literature Research Aide
 emoji: 📚
 colorFrom: blue
 colorTo: green
